@@ -1,12 +1,23 @@
 from nicestalker.discord_token import Discord
-from toasted import Toast, Text, Image, Progress
+from toasted import Toast, Text, Image, ToastImagePlacement
+from toasted.common import resolve_uri
+from pathlib import Path
+from tempfile import TemporaryFile
 import discord
 import time
+
+APP_ID = "NiceStalker Notifier"
+DISPLAY_NAME = "NiceStalker Notifier"
 
 class NotifierClient(discord.Client):
 
     def __init__(self):
         discord.Client.__init__(self)
+        Toast.register_app_id(
+            handle = APP_ID,
+            display_name = DISPLAY_NAME,
+            icon_uri = None
+        )
         self.last_update = {}
 
     async def on_ready(self):
@@ -33,20 +44,12 @@ class NotifierClient(discord.Client):
         elements = []
 
         if profile_avatar_url:
-            elements.append({
-                "@type": "image",
-                "source": profile_avatar_url,
-                "placement": "LOGO",
-                "is_circle": True
-            })
+            elements.append(Image(profile_avatar_url, placement = ToastImagePlacement.LOGO, is_circle = True))
         
-        elements.append({
-            "@type": "text",
-            "content": content
-        })
+        elements.append(Text(content))
 
-        data = {"elements": elements}
-        toast = Toast.from_json(data)
+        toast = Toast(app_id=APP_ID,  remote_media = True)
+        toast.elements = elements
         await toast.show()
 
     async def on_presence_update(self, before, after):
@@ -61,7 +64,7 @@ class NotifierClient(discord.Client):
             discord_id = before.id
             profile_avatar_url = before.avatar.url if before.avatar else None
         
-        if before.status != after.status and not is_relationship:
+        if before.status != after.status:
             if before.status == discord.Status.offline:
                 await self.alert_online(name, discord_id, profile_avatar_url)
 
