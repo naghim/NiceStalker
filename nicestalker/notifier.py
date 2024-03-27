@@ -1,13 +1,21 @@
 from nicestalker.discord_token import Discord
 from toasted import Toast, Text, Image, ToastImagePlacement
-from toasted.common import resolve_uri
-from pathlib import Path
-from tempfile import TemporaryFile
+from nicestalker.util import is_partial_match
+from nicestalker.tray import SystemTray
+import json
 import discord
 import time
+import random
 
 APP_ID = "NiceStalker Notifier"
 DISPLAY_NAME = "NiceStalker Notifier"
+
+colors = ["yellow", "green", "blue", "red", "grey"]
+
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+ppl_to_stalk = config['peopleToStalk']
 
 class NotifierClient(discord.Client):
 
@@ -54,19 +62,27 @@ class NotifierClient(discord.Client):
 
     async def on_presence_update(self, before, after):
         is_relationship = isinstance(before, discord.Relationship)
+        user = before.user if is_relationship else before
 
-        if is_relationship:
-            name = before.user.global_name
-            discord_id = before.user.id
-            profile_avatar_url = before.user.avatar.url if before.user.avatar else None
+        if ppl_to_stalk and not is_partial_match([user.name, user.global_name, str(user.id)], ppl_to_stalk):
+            return
+
+        name = user.global_name if not None else user.name
+        discord_id = user.id
+
+        if user.avatar:
+            profile_avatar_url = user.avatar.url
         else:
-            name = before.global_name
-            discord_id = before.id
-            profile_avatar_url = before.avatar.url if before.avatar else None
+            # Some people don't have avatars, we will give them a random default Discord avatar 
+            random_color = random.choice(colors)
+            profile_avatar_url = f"https://archive.org/download/discordprofilepictures/discord{random_color}.png"
         
         if before.status != after.status:
             if before.status == discord.Status.offline:
                 await self.alert_online(name, discord_id, profile_avatar_url)
 
-client = NotifierClient()
-client.init_with_token()
+if __name__ == '__main__':
+    tray = SystemTray()
+    tray.start()
+    client = NotifierClient()
+    client.init_with_token()

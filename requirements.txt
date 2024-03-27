@@ -2,3 +2,5 @@ discord.py-self
 pycryptodomex
 pypiwin32
 toasted
+pystray
+Pillow
