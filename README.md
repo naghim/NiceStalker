@@ -18,7 +18,7 @@ NiceStalker is a simple Discord bot designed to notify users when people become 
 
 :negative_squared_cross_mark: **Automatic startup:** If required, NiceStalker can automatically start up on system boot, ensuring that you never miss out on any important alerts.
 
-:negative_squared_cross_mark: **Easy-to-use interface for configuring the app** NiceStalker offers an intuitive interface to configure the bot's settings. You can easily adjust your notification preferences without the need to use any command-line commands directly.
+:white_check_mark: **Easy-to-use interface for configuring the app** NiceStalker offers an intuitive interface to configure the bot's settings. You can easily adjust your notification preferences without the need to use any command-line commands directly.
 
 ## Installation
 
@@ -48,7 +48,9 @@ python -m nicestalker.notifier
 
 ## Configuration
 
-NiceStalker allows you to customize your notification preferences by configuring a `config.json` file. Currently, this is the primary method for configuring the bot's behavior. Follow the steps below to set up your configuration:
+NiceStalker allows you to customize your notification preferences by configuring a `config.json` file. The preferred way of configuration is through the GUI.
+
+You can also manually edit the `config.json` file. Follow the steps below to set up your configuration:
 
 1. Create a file named `config.json` in the root directory of the NiceStalker project.
 
@@ -65,3 +67,7 @@ Replace `"discord_username"` and `"discord_displayname"` with the Discord userna
 **Note:** NiceStalker also supports partial matches for usernames and display names. If you provide a partial username or display name, NiceStalker will match it with any user whose username or display name contains the provided text.
 
 If the `"peopleToStalk"` array is left blank, NiceStalker will notify you whenever **any** user becomes online.
+
+There is also an option to blacklist users. Create another array in the `config.json` file named `"peopleToIgnore"` to add users to the list.
+
+NiceStalker can also be configured to run on startup, to do so, add `"runOnStartup": true` to the config file.

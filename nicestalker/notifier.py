@@ -16,6 +16,7 @@ with open('config.json', 'r') as f:
     config = json.load(f)
 
 ppl_to_stalk = config['peopleToStalk']
+ppl_to_ignore = config['peopleToIgnore']
 
 class NotifierClient(discord.Client):
 
@@ -63,8 +64,12 @@ class NotifierClient(discord.Client):
     async def on_presence_update(self, before, after):
         is_relationship = isinstance(before, discord.Relationship)
         user = before.user if is_relationship else before
+        matches = [user.name, user.global_name, str(user.id)]
 
-        if ppl_to_stalk and not is_partial_match([user.name, user.global_name, str(user.id)], ppl_to_stalk):
+        if ppl_to_stalk and not is_partial_match(matches, ppl_to_stalk):
+            return
+    
+        if ppl_to_ignore and is_partial_match(matches, ppl_to_ignore):
             return
 
         name = user.global_name if not None else user.name
