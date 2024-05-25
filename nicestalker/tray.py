@@ -9,7 +9,10 @@ class SystemTray(threading.Thread):
         threading.Thread.__init__(self)
         self.daemon = True
 
-        self.icon_image = Image.open('nightstalker.png')
+        try:
+            self.icon_image = Image.open('resources/nightstalker.png')
+        except:
+            self.icon_image = Image.open('nicestalker/resources/nightstalker.png')
         self.menu = pystray.Menu(
             pystray.MenuItem('Quit', self.on_quit)
         )

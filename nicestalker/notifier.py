@@ -85,9 +85,3 @@ class NotifierClient(discord.Client):
         if before.status != after.status:
             if before.status == discord.Status.offline:
                 await self.alert_online(name, discord_id, profile_avatar_url)
-
-if __name__ == '__main__':
-    tray = SystemTray()
-    tray.start()
-    client = NotifierClient()
-    client.init_with_token()
