@@ -5,7 +5,9 @@ from nicestalker.notifier import NotifierClient
 from nicestalker.tray import SystemTray
 import json
 import asyncio
+import winshell
 import os
+import sys
 
 class Main(object):
 
@@ -17,6 +19,8 @@ class Main(object):
         self.notifier_loop = None
     
     def run(self):
+        self.startup = winshell.startup()
+        self.startup_shortcut = os.path.join(self.startup, 'NiceStalker.lnk')
         self.start_main_window()
     
     def load_config(self):
@@ -93,3 +97,16 @@ class Main(object):
         except:
             import traceback
             print(traceback.format_exc())
+    
+    def add_to_startup(self):
+        self.remove_from_startup()
+
+        with winshell.shortcut(self.startup_shortcut) as link:
+            link.path = os.path.abspath(sys.argv[0])
+            link.description = 'NiceStalker Notifier'
+            link.working_directory = os.path.dirname(link.path)
+            link.write()
+    
+    def remove_from_startup(self):
+        if os.path.exists(self.startup_shortcut):
+            os.remove(self.startup_shortcut)

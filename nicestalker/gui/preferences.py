@@ -6,6 +6,7 @@ from qfluentwidgets import (ScrollArea, PushButton, FluentIcon,
                             TitleLabel, SubtitleLabel, BodyLabel, CheckBox, LineEdit, FlowLayout, StateToolTip, MessageBox)
 import json
 import os
+import psutil
 
 class DynamicEntry(PushButton):
 
@@ -157,11 +158,14 @@ class PreferencesInterface(ScrollArea):
         self.peopleToIgnoreList = DynamicList(self.preferences_changed, 'Name or Discord ID')
         self.runOnStartup = CheckBox('Run on startup')
         self.runOnStartup.stateChanged.connect(self.preferences_changed)
-    
+
         self.startButton = PushButton('Start')
         self.startButton.setIcon(FluentIcon.BROOM)
         self.startButton.setEnabled(True)
         self.startButton.clicked.connect(self.start_app)
+
+        self.app_running = self.is_app_running()
+        self.update_start_button()
 
         self.vBoxLayout.addWidget(self.titleWidget)
         self.vBoxLayout.addWidget(self.filtersSubtitle)
@@ -175,6 +179,25 @@ class PreferencesInterface(ScrollArea):
 
         StyleSheet().apply(self)
         self.load()
+
+    def get_other_apps(self):
+        current_pid = os.getpid()
+
+        for proc in psutil.process_iter(['name', 'pid']):
+            if proc.info['name'] == 'NiceStalker.exe' and proc.info['pid'] != current_pid:
+                yield proc
+
+    def is_app_running(self):
+        for _ in self.get_other_apps():
+            return True
+
+        return False
+    
+    def update_start_button(self):
+        if self.app_running:
+            self.startButton.setText('Stop')
+        else:
+            self.startButton.setText('Start')
 
     def preferences_changed(self):
         self.saveButton.setEnabled(True)
@@ -201,6 +224,14 @@ class PreferencesInterface(ScrollArea):
             w.exec()
 
     def save(self): 
+        if self.main.run_on_startup != self.runOnStartup.isChecked():
+            should_run_on_startup = self.runOnStartup.isChecked()
+
+            if should_run_on_startup:
+                self.main.add_to_startup()
+            else:
+                self.main.remove_from_startup()
+
         try:
             self.save_config()
         except:
@@ -216,4 +247,23 @@ class PreferencesInterface(ScrollArea):
         self.stateTooltip.setState(True)
 
     def start_app(self):
-        self.main.start_notifier()
+        if self.saveButton.isEnabled():
+            self.saveButton.setEnabled(False)
+            w = MessageBox('Warning!', 'You have unsaved changes. Would you like to save them?', self)
+            w.cancelButton.clicked.connect(self.start_app_without_save)
+            w.yesButton.clicked.connect(self.save_and_start_app)
+            w.exec()
+            return
+    
+        self.start_app_without_save()
+
+    def save_and_start_app(self):
+        self.save()
+        self.start_app_without_save()
+
+    def start_app_without_save(self):
+        if self.app_running:
+            for proc in self.get_other_apps():
+                proc.kill()
+        else:
+            self.main.start_notifier()
