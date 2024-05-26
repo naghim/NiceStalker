@@ -28,5 +28,4 @@ jobs:
         with:
           name: NiceStalker
           path: |
-            NiceStalkerConfigurator.exe
-            NiceStalkerDaemon.exe
+            NiceStalker.exe
