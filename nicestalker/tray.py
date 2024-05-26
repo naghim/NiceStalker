@@ -5,8 +5,9 @@ import sys, os
 
 class SystemTray(threading.Thread):
 
-    def __init__(self):
+    def __init__(self, main):
         threading.Thread.__init__(self)
+        self.main = main
         self.daemon = True
 
         try:
@@ -18,6 +19,9 @@ class SystemTray(threading.Thread):
             pystray.MenuItem('Quit', self.on_quit)
         )
         self.icon = pystray.Icon('Night Stalker', self.icon_image, 'Night Stalker', self.menu)
+
+    def close(self):
+        self.icon.stop()
 
     def on_quit(self):
         os._exit(0)

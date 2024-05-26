@@ -12,16 +12,11 @@ DISPLAY_NAME = "NiceStalker Notifier"
 
 colors = ["yellow", "green", "blue", "red", "grey"]
 
-with open('config.json', 'r') as f:
-    config = json.load(f)
-
-ppl_to_stalk = config['peopleToStalk']
-ppl_to_ignore = config['peopleToIgnore']
-
 class NotifierClient(discord.Client):
 
-    def __init__(self):
+    def __init__(self, main):
         discord.Client.__init__(self)
+        self.main = main
         Toast.register_app_id(
             handle = APP_ID,
             display_name = DISPLAY_NAME,
@@ -32,14 +27,14 @@ class NotifierClient(discord.Client):
     async def on_ready(self):
         print('Logged on as', self.user)
 
-    def init_with_token(self):
+    async def init_with_token(self):
         discord = Discord()
 
         if not discord.tokens:
             raise Exception('No Discord token found')
         
         token = discord.tokens[0]
-        self.run(token)
+        await self.start(token)
 
     async def alert_online(self, username, discord_id, profile_avatar_url):
         if discord_id in self.last_update and time.time() - self.last_update[discord_id] < 10:
@@ -66,10 +61,10 @@ class NotifierClient(discord.Client):
         user = before.user if is_relationship else before
         matches = [user.name, user.global_name, str(user.id)]
 
-        if ppl_to_stalk and not is_partial_match(matches, ppl_to_stalk):
+        if self.main.ppl_to_stalk and not is_partial_match(matches, self.main.ppl_to_stalk):
             return
     
-        if ppl_to_ignore and is_partial_match(matches, ppl_to_ignore):
+        if self.main.ppl_to_ignore and is_partial_match(matches, self.main.ppl_to_ignore):
             return
 
         name = user.global_name if not None else user.name

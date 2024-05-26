@@ -1,6 +1,6 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
-from gui.stylesheet import StyleSheet
+from nicestalker.gui.stylesheet import StyleSheet
 
 from qfluentwidgets import (ScrollArea, PushButton, FluentIcon,
                             TitleLabel, SubtitleLabel, BodyLabel, CheckBox, LineEdit, FlowLayout, StateToolTip, MessageBox)

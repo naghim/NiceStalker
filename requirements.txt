@@ -4,3 +4,4 @@ pypiwin32
 toasted
 pystray
 Pillow
+PyQt6-Fluent-Widgets
