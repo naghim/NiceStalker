@@ -119,8 +119,9 @@ class DynamicList(QWidget):
 
 class PreferencesInterface(ScrollArea):
     
-    def __init__(self, parent=None):
+    def __init__(self, main, parent=None):
         super().__init__(parent=parent)
+        self.main = main
         self.view = QWidget(self)
         self.vBoxLayout = QVBoxLayout(self.view)
 
@@ -157,6 +158,11 @@ class PreferencesInterface(ScrollArea):
         self.runOnStartup = CheckBox('Run on startup')
         self.runOnStartup.stateChanged.connect(self.preferences_changed)
     
+        self.startButton = PushButton('Start')
+        self.startButton.setIcon(FluentIcon.BROOM)
+        self.startButton.setEnabled(True)
+        self.startButton.clicked.connect(self.start_app)
+
         self.vBoxLayout.addWidget(self.titleWidget)
         self.vBoxLayout.addWidget(self.filtersSubtitle)
         self.vBoxLayout.addWidget(self.peopleToWatchCaption)
@@ -165,6 +171,7 @@ class PreferencesInterface(ScrollArea):
         self.vBoxLayout.addWidget(self.peopleToIgnoreList)
         self.vBoxLayout.addWidget(self.appSubtitle)
         self.vBoxLayout.addWidget(self.runOnStartup)
+        self.vBoxLayout.addWidget(self.startButton)
 
         StyleSheet().apply(self)
         self.load()
@@ -173,24 +180,17 @@ class PreferencesInterface(ScrollArea):
         self.saveButton.setEnabled(True)
     
     def load_config(self):
-        if not os.path.exists('config.json'):
-            return
-
-        with open('config.json', 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        
-        self.peopleToWatchList.load_from_list(config.get('peopleToStalk', []))
-        self.peopleToIgnoreList.load_from_list(config.get('peopleToIgnore', []))
-        self.runOnStartup.setChecked(bool(config.get('runOnStartup', False)))
+        self.main.load_config()
+        self.peopleToWatchList.load_from_list(self.main.ppl_to_stalk)
+        self.peopleToIgnoreList.load_from_list(self.main.ppl_to_ignore)
+        self.runOnStartup.setChecked(self.main.run_on_startup)
         self.saveButton.setEnabled(False)
 
     def save_config(self):
-        with open('config.json', 'w', encoding='utf-8') as f:
-            json.dump({
-                'peopleToStalk': self.peopleToWatchList.data,
-                'peopleToIgnore': self.peopleToIgnoreList.data,
-                'runOnStartup': self.runOnStartup.isChecked()
-            }, f, indent=2, separators=(',', ': '))
+        self.main.ppl_to_stalk = self.peopleToWatchList.data
+        self.main.ppl_to_ignore = self.peopleToIgnoreList.data
+        self.main.run_on_startup = self.runOnStartup.isChecked()
+        self.main.save_config()
 
     def load(self):
         try:
@@ -214,3 +214,6 @@ class PreferencesInterface(ScrollArea):
         self.stateTooltip.move(self.stateTooltip.getSuitablePos())
         self.stateTooltip.show()
         self.stateTooltip.setState(True)
+
+    def start_app(self):
+        self.main.start_notifier()

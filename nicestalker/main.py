@@ -5,6 +5,7 @@ from nicestalker.notifier import NotifierClient
 from nicestalker.tray import SystemTray
 import json
 import asyncio
+import os
 
 class Main(object):
 
@@ -19,19 +20,34 @@ class Main(object):
         self.start_main_window()
     
     def load_config(self):
-        with open('config.json', 'r') as f:
-            self.config = json.load(f)
+        try:
+            with open('config.json', 'r', encoding='utf-8') as f:
+                self.config = json.load(f)
+        except:
+            self.ppl_to_stalk = []
+            self.ppl_to_ignore = []
+            self.run_on_startup = False
+            return
 
         self.ppl_to_stalk = self.config['peopleToStalk']
         self.ppl_to_ignore = self.config['peopleToIgnore']
+        self.run_on_startup = bool(self.config.get('runOnStartup', False))
+
+    def save_config(self):
+        data = {
+            'peopleToStalk': self.ppl_to_stalk,
+            'peopleToIgnore': self.ppl_to_ignore,
+            'runOnStartup': self.run_on_startup
+        }
+
+        with open('config.json', 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, separators=(',', ': '))
 
     def close_main_window(self):
         if self.window:
-            print('Close window')
             self.window.close()
 
         if self.app:
-            print('Quit app')
             self.app.quit()
         
         self.window = None
@@ -42,7 +58,6 @@ class Main(object):
             self.tray.close()
 
         if self.notifier_loop:
-            print('Close notifier loop')
             for task in asyncio.all_tasks(self.notifier_loop):
                 task.cancel()
             
@@ -58,6 +73,7 @@ class Main(object):
     def start_main_window(self):
         self.close_main_window()
         self.close_notifier()
+
         self.app = QApplication([])
         self.app.setAttribute(Qt.ApplicationAttribute.AA_DontCreateNativeWidgetSiblings)
         self.window = MainWindow(self)
@@ -66,7 +82,7 @@ class Main(object):
     def start_notifier(self):
         self.close_main_window()
         self.close_notifier()
-        print('Create notifier')
+        
         self.tray = SystemTray(self)
         self.tray.start()
         self.notifier = NotifierClient(self)

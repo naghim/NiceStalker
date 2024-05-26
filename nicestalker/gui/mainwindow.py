@@ -10,12 +10,10 @@ class MainWindow(FluentWindow):
         super().__init__()
         self.main = main
 
-        self.preferencesInterface = PreferencesInterface(self)
-        self.statusInterface = StatusInterface(self.main, self)
+        self.preferencesInterface = PreferencesInterface(self.main, self)
 
         pos = NavigationItemPosition.SCROLL
         self.addSubInterface(self.preferencesInterface, FluentIcon.CHECKBOX, 'Preferences', pos)
-        self.addSubInterface(self.statusInterface, FluentIcon.STOP_WATCH, 'Status', pos)
 
         self.setWindowTitle('Nice Stalker Configurator')
         desktop = QApplication.screens()[0].availableGeometry()
