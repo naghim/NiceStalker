@@ -1,8 +1,10 @@
 from qfluentwidgets import FluentWindow, FluentIcon, NavigationItemPosition
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
 from nicestalker.gui.preferences import PreferencesInterface
 from nicestalker.gui.status import StatusInterface
 from qfluentwidgets import MessageBox
+import os
 
 class MainWindow(FluentWindow):
 
@@ -15,6 +17,14 @@ class MainWindow(FluentWindow):
         pos = NavigationItemPosition.SCROLL
         self.addSubInterface(self.preferencesInterface, FluentIcon.CHECKBOX, 'Preferences', pos)
 
+        icon = QIcon()
+
+        if os.path.exists('resources/nightstalker.png'):
+            icon.addFile('resources/nightstalker.png')
+        else:
+            icon.addFile('nicestalker/resources/nightstalker.png')
+
+        self.setWindowIcon(icon)
         self.setWindowTitle('Nice Stalker Configurator')
         desktop = QApplication.screens()[0].availableGeometry()
         w, h = desktop.width(), desktop.height()

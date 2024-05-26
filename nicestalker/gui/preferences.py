@@ -184,7 +184,7 @@ class PreferencesInterface(ScrollArea):
         current_pid = os.getpid()
 
         for proc in psutil.process_iter(['name', 'pid']):
-            if proc.info['name'] == 'NiceStalker.exe' and proc.info['pid'] != current_pid:
+            if proc.info['name'] == 'NiceStalker.exe' and proc.info['pid'] != current_pid and 'onefile' in proc.exe():
                 yield proc
 
     def is_app_running(self):
