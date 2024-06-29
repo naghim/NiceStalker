@@ -4,9 +4,10 @@ from nicestalker.gui.stylesheet import StyleSheet
 
 from qfluentwidgets import (ScrollArea, PushButton, FluentIcon,
                             TitleLabel, SubtitleLabel, BodyLabel, CheckBox, LineEdit, FlowLayout, StateToolTip, MessageBox)
-import json
+import subprocess
 import os
 import psutil
+import sys
 
 class DynamicEntry(PushButton):
 
@@ -262,8 +263,18 @@ class PreferencesInterface(ScrollArea):
         self.start_app_without_save()
 
     def start_app_without_save(self):
+        for proc in self.get_other_apps():
+            proc.kill()
+        
         if self.app_running:
-            for proc in self.get_other_apps():
-                proc.kill()
+            return
+        
+        is_nuitka = '__compiled__' in globals()
+
+        if is_nuitka:
+            args = [sys.executable, '--discord']
         else:
-            self.main.start_notifier()
+            args = [sys.executable, '-m', 'nicestalker', '--discord']
+
+        subprocess.Popen(args, cwd=os.getcwd(), stdin=None, stdout=None, stderr=None, shell=False, close_fds=True)
+        sys.exit()

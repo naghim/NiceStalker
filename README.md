@@ -16,11 +16,32 @@ NiceStalker is a simple Discord bot designed to notify users when people become 
 
 :white_check_mark: **Tray Option**: NiceStalker provides a tray icon functionality allowing you to run the app in the background and access it conveniently from the system tray. NiceStalker can also be stopped through the tray icon menu.
 
-:negative_squared_cross_mark: **Automatic startup:** If required, NiceStalker can automatically start up on system boot, ensuring that you never miss out on any important alerts.
+:white_check_mark: **Automatic startup:** If required, NiceStalker can automatically start up on system boot, ensuring that you never miss out on any important alerts.
 
 :white_check_mark: **Easy-to-use interface for configuring the app** NiceStalker offers an intuitive interface to configure the bot's settings. You can easily adjust your notification preferences without the need to use any command-line commands directly.
 
 ## Installation
+
+### Windows
+
+1. Download the latest release from the [Releases](https://github.com/naghim/NiceStalker/releases) page.
+
+2. Double-click the downloaded `.exe` file to install the application.
+
+3. Start the application, configure the settings and press "Start". To automatically run the application on startup, check the corresponding checkbox.
+
+### Linux and macOS
+
+Currently, there is no standalone executable for Linux and macOS. You can still run NiceStalker using Python as described below.
+
+### Using Python
+
+#### Pre-requisites
+
+Ensure that you have Python 3.12 installed on your system.
+Make sure `pip` is installed. You can check by running `pip --version` in your terminal.
+
+#### Installation Steps
 
 To install NiceStalker, follow these steps:
 
@@ -43,14 +64,16 @@ python -m pip install -r requirements.txt
 5. Run the bot.
 
 ```bash
-python -m nicestalker.notifier
+python -m nicestalker
 ```
+
+Adding the `--discord` flag at the end will only run the bot without the GUI.
 
 ## Configuration
 
-NiceStalker allows you to customize your notification preferences by configuring a `config.json` file. The preferred way of configuration is through the GUI.
+NiceStalker allows you to customize your notification preferences via a `config.json` file. The preferred way of configuration is through the GUI. However, you can also edit the `config.json` file manually.
 
-You can also manually edit the `config.json` file. Follow the steps below to set up your configuration:
+For manual configuration, follow the steps below to set up your bot:
 
 1. Create a file named `config.json` in the root directory of the NiceStalker project.
 
@@ -58,7 +81,9 @@ You can also manually edit the `config.json` file. Follow the steps below to set
 
 ```json
 {
-  "peopleToStalk": ["discord_username", "discord_displayname"]
+  "peopleToStalk": ["discord_username", "discord_displayname"],
+  "peopleToIgnore": ["discord_username", "discord_displayname"],
+  "runOnStartup": true
 }
 ```
 

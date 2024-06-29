@@ -1,11 +1,8 @@
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication
-from nicestalker.gui.mainwindow import MainWindow
-from nicestalker.notifier import NotifierClient
-from nicestalker.tray import SystemTray
+import traceback
 import json
 import asyncio
 import winshell
+import argparse
 import os
 import sys
 
@@ -21,7 +18,17 @@ class Main(object):
     def run(self):
         self.startup = winshell.startup()
         self.startup_shortcut = os.path.join(self.startup, 'NiceStalker.lnk')
-        self.start_main_window()
+        self.parse_args()
+
+    def parse_args(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--discord', action='store_true', help='Start NiceStalker as a Discord bot.')
+        args = parser.parse_args()
+
+        if args.discord:
+            self.start_notifier()
+        else:
+            self.start_main_window()
     
     def load_config(self):
         try:
@@ -47,36 +54,10 @@ class Main(object):
         with open('config.json', 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, separators=(',', ': '))
 
-    def close_main_window(self):
-        if self.window:
-            self.window.close()
-
-        if self.app:
-            self.app.quit()
-        
-        self.window = None
-        self.app = None
-
-    def close_notifier(self):
-        if self.tray:
-            self.tray.close()
-
-        if self.notifier_loop:
-            for task in asyncio.all_tasks(self.notifier_loop):
-                task.cancel()
-            
-            try:
-                self.notifier_loop.close()
-            except:
-                pass
-
-        self.tray = None       
-        self.notifier = None
-        self.notifier_loop = None
-
     def start_main_window(self):
-        self.close_main_window()
-        self.close_notifier()
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtWidgets import QApplication
+        from nicestalker.gui.mainwindow import MainWindow
 
         self.app = QApplication([])
         self.app.setAttribute(Qt.ApplicationAttribute.AA_DontCreateNativeWidgetSiblings)
@@ -84,9 +65,8 @@ class Main(object):
         self.app.exec()
     
     def start_notifier(self):
-        self.close_main_window()
-        self.close_notifier()
-        
+        from nicestalker.notifier import NotifierClient
+        from nicestalker.tray import SystemTray
         self.tray = SystemTray(self)
         self.tray.start()
         self.notifier = NotifierClient(self)
@@ -95,16 +75,23 @@ class Main(object):
         try:
             self.notifier_loop.run_until_complete(self.notifier.init_with_token())
         except:
-            import traceback
             print(traceback.format_exc())
     
     def add_to_startup(self):
         self.remove_from_startup()
 
         with winshell.shortcut(self.startup_shortcut) as link:
-            link.path = os.path.abspath(sys.argv[0])
+            is_nuitka = '__compiled__' in globals()
+
+            if is_nuitka:
+                link.path = os.path.abspath(sys.argv[0])
+                link.arguments = '--discord'
+            else:
+                link.path = sys.executable
+                link.arguments = '-m nicestalker --discord'
+
             link.description = 'NiceStalker Notifier'
-            link.working_directory = os.path.dirname(link.path)
+            link.working_directory = os.getcwd()
             link.write()
     
     def remove_from_startup(self):
