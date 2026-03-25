@@ -184,9 +184,18 @@ class PreferencesInterface(ScrollArea):
     def get_other_apps(self):
         current_pid = os.getpid()
 
-        for proc in psutil.process_iter(['name', 'pid']):
-            if proc.info['name'] == 'NiceStalker.exe' and proc.info['pid'] != current_pid and 'onefile' in proc.exe():
-                yield proc
+        for proc in psutil.process_iter(['name', 'pid', 'cmdline']):
+            try:
+                if proc.info['pid'] == current_pid:
+                    continue
+                name = proc.info['name'] or ''
+                cmdline = proc.info['cmdline'] or []
+                cmdline_str = ' '.join(cmdline).lower()
+                # Match compiled exe on Windows/Linux or python module invocation on any platform
+                if name in ('NiceStalker.exe', 'NiceStalker') or ('nicestalker' in cmdline_str and '--discord' in cmdline_str):
+                    yield proc
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
 
     def is_app_running(self):
         for _ in self.get_other_apps():
@@ -263,10 +272,14 @@ class PreferencesInterface(ScrollArea):
         self.start_app_without_save()
 
     def start_app_without_save(self):
+        was_running = False
         for proc in self.get_other_apps():
             proc.kill()
-        
-        if self.app_running:
+            was_running = True
+
+        if was_running:
+            self.app_running = False
+            self.update_start_button()
             return
         
         is_nuitka = '__compiled__' in globals()

@@ -2,7 +2,7 @@
 
 _"Day walker, night stalker."_
 
-NiceStalker is a simple Discord bot designed to notify users when people become online on Discord. The project name is a playful nod to [Night Stalker](https://www.dota2.com/hero/nightstalker), a character from the popular game Dota 2.
+NiceStalker is a simple Discord bot designed to notify users when people become online or start activities on Discord. The project's name is a playful nod to [Night Stalker](https://www.dota2.com/hero/nightstalker), a character from the popular game Dota 2.
 
 <p align="center">
   <img width="450" src="images/nicestalker.png" alt="Picture of an example notification"/>
@@ -11,6 +11,8 @@ NiceStalker is a simple Discord bot designed to notify users when people become 
 ## Features
 
 :white_check_mark: **Real-time notifications:** NiceStalker keeps track of users' statuses and sends notifications whenever someone comes online on Discord.
+
+:white_check_mark: **Activity tracking:** NiceStalker also notifies you when a monitored user starts playing a game or launches an activity.
 
 :white_check_mark: **Customizable settings:** You can customize your notification preferences, including which users to monitor.
 
@@ -30,16 +32,30 @@ NiceStalker is a simple Discord bot designed to notify users when people become 
 
 3. Start the application, configure the settings and press "Start". To automatically run the application on startup, check the corresponding checkbox.
 
-### Linux and macOS
+### Linux
 
-Currently, there is no standalone executable for Linux and macOS. You can still run NiceStalker using Python as described below.
+1. Download the latest `NiceStalker` binary from the [Releases](https://github.com/naghim/NiceStalker/releases) page.
+
+2. Make it executable and run it:
+
+```bash
+chmod +x NiceStalker
+./NiceStalker
+```
+
+3. Ensure the following system packages are installed (most desktop distros include these by default):
+   - `libnotify` - for desktop notifications (`notify-send`)
+   - `libappindicator3` - for the system tray icon (optional)
+
+### macOS
+
+Currently, there is no standalone executable for macOS. You can still run NiceStalker using Python as described below.
 
 ### Using Python
 
 #### Pre-requisites
 
-Ensure that you have Python 3.12 installed on your system.
-Make sure `pip` is installed. You can check by running `pip --version` in your terminal.
+Ensure that you have Python 3.12 or newer installed on your system.
 
 #### Installation Steps
 
@@ -51,10 +67,13 @@ To install NiceStalker, follow these steps:
 git clone https://github.com/naghim/NiceStalker.git
 ```
 
-2. Install the necessary dependencies.
+2. Create and activate a virtual environment, then install the necessary dependencies.
 
 ```bash
-python -m pip install -r requirements.txt
+python -m venv --system-site-packages .venv
+source .venv/bin/activate      # Linux/macOS
+.venv\Scripts\activate         # Windows
+pip install -r requirements.txt
 ```
 
 3. Ensure that you are logged into the Discord client.

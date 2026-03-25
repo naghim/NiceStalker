@@ -3,7 +3,7 @@ name: Build
 on: [push, repository_dispatch, workflow_dispatch]
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -40,3 +40,38 @@ jobs:
           name: NiceStalkerInstaller
           path: |
             NiceStalkerInstaller.exe
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnotify-bin \
+            libappindicator3-dev \
+            gir1.2-appindicator3-0.1 \
+            python3-gi \
+            python3-gi-cairo \
+            patchelf \
+            ccache
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: "x64"
+      - name: Install Python requirements
+        run: >
+          python -OO -m pip install --disable-pip-version-check --upgrade nuitka zstandard &&
+            python -OO -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Build executable
+        run: >
+          python -OO -m nuitka --standalone --onefile --python-flag=-OO --assume-yes-for-downloads --static-libpython=no --include-data-dir=nicestalker/resources=nicestalker/resources --enable-plugin=pyqt6 -o NiceStalker nicestalker/__main__.py
+      - name: Upload application
+        uses: actions/upload-artifact@v4
+        with:
+          name: NiceStalker-Linux
+          path: |
+            NiceStalker

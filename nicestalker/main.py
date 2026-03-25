@@ -1,10 +1,14 @@
 import traceback
 import json
 import asyncio
-import winshell
 import argparse
 import os
 import sys
+
+IS_WINDOWS = sys.platform == 'win32'
+
+if IS_WINDOWS:
+    import winshell
 
 class Main(object):
 
@@ -16,8 +20,13 @@ class Main(object):
         self.notifier_loop = None
     
     def run(self):
-        self.startup = winshell.startup()
-        self.startup_shortcut = os.path.join(self.startup, 'NiceStalker.lnk')
+        if IS_WINDOWS:
+            self.startup = winshell.startup()
+            self.startup_shortcut = os.path.join(self.startup, 'NiceStalker.lnk')
+        else:
+            autostart_dir = os.path.join(os.path.expanduser("~"), ".config", "autostart")
+            os.makedirs(autostart_dir, exist_ok=True)
+            self.startup_shortcut = os.path.join(autostart_dir, "nicestalker.desktop")
         self.parse_args()
 
     def parse_args(self):
@@ -67,6 +76,7 @@ class Main(object):
     def start_notifier(self):
         from nicestalker.notifier import NotifierClient
         from nicestalker.tray import SystemTray
+        self.load_config()
         self.tray = SystemTray(self)
         self.tray.start()
         self.notifier = NotifierClient(self)
@@ -80,19 +90,37 @@ class Main(object):
     def add_to_startup(self):
         self.remove_from_startup()
 
-        with winshell.shortcut(self.startup_shortcut) as link:
+        if IS_WINDOWS:
+            with winshell.shortcut(self.startup_shortcut) as link:
+                is_nuitka = '__compiled__' in globals()
+
+                if is_nuitka:
+                    link.path = os.path.abspath(sys.argv[0])
+                    link.arguments = '--discord'
+                else:
+                    link.path = sys.executable
+                    link.arguments = '-m nicestalker --discord'
+
+                link.description = 'NiceStalker Notifier'
+                link.working_directory = os.getcwd()
+                link.write()
+        else:
             is_nuitka = '__compiled__' in globals()
-
             if is_nuitka:
-                link.path = os.path.abspath(sys.argv[0])
-                link.arguments = '--discord'
+                exec_line = f'{os.path.abspath(sys.argv[0])} --discord'
             else:
-                link.path = sys.executable
-                link.arguments = '-m nicestalker --discord'
+                exec_line = f'{sys.executable} -m nicestalker --discord'
 
-            link.description = 'NiceStalker Notifier'
-            link.working_directory = os.getcwd()
-            link.write()
+            desktop_entry = (
+                "[Desktop Entry]\n"
+                "Type=Application\n"
+                "Name=NiceStalker Notifier\n"
+                f"Exec={exec_line}\n"
+                f"Path={os.getcwd()}\n"
+                "X-GNOME-Autostart-enabled=true\n"
+            )
+            with open(self.startup_shortcut, "w") as f:
+                f.write(desktop_entry)
     
     def remove_from_startup(self):
         if os.path.exists(self.startup_shortcut):

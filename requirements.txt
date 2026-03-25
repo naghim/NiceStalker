@@ -1,9 +1,10 @@
 discord.py-self
 pycryptodomex
-pypiwin32
-toasted
+pypiwin32; sys_platform == 'win32'
+toasted; sys_platform == 'win32'
+winshell; sys_platform == 'win32'
+secretstorage; sys_platform == 'linux'
 pystray
 Pillow
 PyQt6-Fluent-Widgets
-winshell
 psutil
