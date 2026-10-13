@@ -1,7 +1,9 @@
-
 from qfluentwidgets import StyleSheetBase, Theme
+
+from nicestalker import paths
+
 
 class StyleSheet(StyleSheetBase):
 
     def path(self, theme=Theme.AUTO):
-        return f"resources/stylesheet.qss"
+        return paths.resource_path('stylesheet.qss')

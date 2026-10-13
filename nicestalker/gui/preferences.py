@@ -4,10 +4,7 @@ from nicestalker.gui.stylesheet import StyleSheet
 
 from qfluentwidgets import (ScrollArea, PushButton, FluentIcon,
                             TitleLabel, SubtitleLabel, BodyLabel, CheckBox, LineEdit, FlowLayout, StateToolTip, MessageBox)
-import subprocess
-import os
-import psutil
-import sys
+from nicestalker.config import Config
 
 class DynamicEntry(PushButton):
 
@@ -163,10 +160,11 @@ class PreferencesInterface(ScrollArea):
         self.startButton = PushButton('Start')
         self.startButton.setIcon(FluentIcon.BROOM)
         self.startButton.setEnabled(True)
-        self.startButton.clicked.connect(self.start_app)
+        self.startButton.clicked.connect(self.toggle_app)
 
-        self.app_running = self.is_app_running()
+        self.app_running = self.main.is_notifier_running()
         self.update_start_button()
+        self.main.notifierStateChanged.connect(self.on_notifier_state_changed)
 
         self.vBoxLayout.addWidget(self.titleWidget)
         self.vBoxLayout.addWidget(self.filtersSubtitle)
@@ -181,49 +179,28 @@ class PreferencesInterface(ScrollArea):
         StyleSheet().apply(self)
         self.load()
 
-    def get_other_apps(self):
-        current_pid = os.getpid()
+    def on_notifier_state_changed(self, running):
+        self.app_running = running
+        self.update_start_button()
 
-        for proc in psutil.process_iter(['name', 'pid', 'cmdline']):
-            try:
-                if proc.info['pid'] == current_pid:
-                    continue
-                name = proc.info['name'] or ''
-                cmdline = proc.info['cmdline'] or []
-                cmdline_str = ' '.join(cmdline).lower()
-                # Match compiled exe on Windows/Linux or python module invocation on any platform
-                if name in ('NiceStalker.exe', 'NiceStalker') or ('nicestalker' in cmdline_str and '--discord' in cmdline_str):
-                    yield proc
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-
-    def is_app_running(self):
-        for _ in self.get_other_apps():
-            return True
-
-        return False
-    
     def update_start_button(self):
-        if self.app_running:
-            self.startButton.setText('Stop')
-        else:
-            self.startButton.setText('Start')
+        self.startButton.setText('Stop' if self.app_running else 'Start')
 
     def preferences_changed(self):
         self.saveButton.setEnabled(True)
-    
+
     def load_config(self):
-        self.main.load_config()
-        self.peopleToWatchList.load_from_list(self.main.ppl_to_stalk)
-        self.peopleToIgnoreList.load_from_list(self.main.ppl_to_ignore)
-        self.runOnStartup.setChecked(self.main.run_on_startup)
+        self.main.config = Config.load()
+        self.peopleToWatchList.load_from_list(self.main.config.people_to_stalk)
+        self.peopleToIgnoreList.load_from_list(self.main.config.people_to_ignore)
+        self.runOnStartup.setChecked(self.main.config.run_on_startup)
         self.saveButton.setEnabled(False)
 
     def save_config(self):
-        self.main.ppl_to_stalk = self.peopleToWatchList.data
-        self.main.ppl_to_ignore = self.peopleToIgnoreList.data
-        self.main.run_on_startup = self.runOnStartup.isChecked()
-        self.main.save_config()
+        self.main.config.people_to_stalk = self.peopleToWatchList.data
+        self.main.config.people_to_ignore = self.peopleToIgnoreList.data
+        self.main.config.run_on_startup = self.runOnStartup.isChecked()
+        self.main.config.save()
 
     def load(self):
         try:
@@ -234,7 +211,7 @@ class PreferencesInterface(ScrollArea):
             w.exec()
 
     def save(self): 
-        if self.main.run_on_startup != self.runOnStartup.isChecked():
+        if self.main.config.run_on_startup != self.runOnStartup.isChecked():
             should_run_on_startup = self.runOnStartup.isChecked()
 
             if should_run_on_startup:
@@ -256,38 +233,22 @@ class PreferencesInterface(ScrollArea):
         self.stateTooltip.show()
         self.stateTooltip.setState(True)
 
-    def start_app(self):
+    def toggle_app(self):
         if self.saveButton.isEnabled():
-            self.saveButton.setEnabled(False)
             w = MessageBox('Warning!', 'You have unsaved changes. Would you like to save them?', self)
-            w.cancelButton.clicked.connect(self.start_app_without_save)
-            w.yesButton.clicked.connect(self.save_and_start_app)
+            w.cancelButton.clicked.connect(self.toggle_app_now)
+            w.yesButton.clicked.connect(self.save_and_toggle_app)
             w.exec()
             return
-    
-        self.start_app_without_save()
 
-    def save_and_start_app(self):
+        self.toggle_app_now()
+
+    def save_and_toggle_app(self):
         self.save()
-        self.start_app_without_save()
+        self.toggle_app_now()
 
-    def start_app_without_save(self):
-        was_running = False
-        for proc in self.get_other_apps():
-            proc.kill()
-            was_running = True
-
-        if was_running:
-            self.app_running = False
-            self.update_start_button()
-            return
-        
-        is_nuitka = '__compiled__' in globals()
-
-        if is_nuitka:
-            args = [sys.executable, '--discord']
+    def toggle_app_now(self):
+        if self.main.is_notifier_running():
+            self.main.stop_notifier()
         else:
-            args = [sys.executable, '-m', 'nicestalker', '--discord']
-
-        subprocess.Popen(args, cwd=os.getcwd(), stdin=None, stdout=None, stderr=None, shell=False, close_fds=True)
-        sys.exit()
+            self.main.start_notifier()
