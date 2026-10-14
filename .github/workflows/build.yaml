@@ -30,6 +30,8 @@ jobs:
           name: NiceStalker
           path: |
             NiceStalker.exe
+      - name: Install NSIS
+        run: choco install nsis --no-progress -y
       - name: Build installer
         uses: joncloud/makensis-action@v4.1
         with:
